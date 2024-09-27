@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Greeting</title>
+    <style>
+        @font-face {
+            font-family: 'TestDomaineDisplayCondensed';
+            src: url('https://raw.githubusercontent.com/MichaelH12345/tod/main/TestDomaineDisplayCondensed-Medium.otf') format('opentype');
+        }
+
+        @font-face {
+            font-family: 'DMSans';
+            src: url('https://raw.githubusercontent.com/MichaelH12345/tod/main/DMSans-Regular.ttf') format('truetype');
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #fff;
+        }
+
+        #greeting {
+            position: absolute;
+            left: 100px;
+            top: 200px;
+            font-size: 200px;
+            white-space: pre-wrap; /* Preserves the line break */
+            font-family: 'TestDomaineDisplayCondensed', Arial, sans-serif;
+            line-height: 0.9; /* Set line height to 1 */
+            opacity: 0; /* Start hidden */
+            transition: opacity 0.5s ease; /* Transition for fade */
+        }
+
+        #welcome {
+            position: absolute;
+            left: 100px;
+            top: 600px; /* 25px underneath the TOD text */
+            font-size: 50px;
+            font-family: 'DMSans', Arial, sans-serif;
+            opacity: 0; /* Start hidden */
+            transition: opacity 0.5s ease 0.5s; /* Fade in after greeting */
+        }
+
+        #temperature {
+            position: absolute;
+            left: 1475px; /* 50 pixels from the right */
+            bottom: 90px; /* 75 pixels from the bottom */
+            font-size: 325px;
+            font-family: 'TestDomaineDisplayCondensed', Arial, sans-serif;
+            color: #000; /* Default color; will be updated with temp color later */
+            opacity: 0; /* Start hidden */
+            transform: scale(0); /* Start scaled down */
+            transition: opacity 0.5s ease 1.5s, transform 0.5s ease; /* Zoom in after welcome */
+        }
+
+        #feelsLike {
+            position: absolute;
+            left: 1475px; /* Same right position as temperature */
+            bottom: 90px; /* 25 pixels underneath the temperature */
+            font-size: 45px;
+            font-family: 'DMSans', Arial, sans-serif;
+            color: #000; /* Default color; will be updated with temp color later */
+            opacity: 0; /* Start hidden */
+            transition: opacity 0.5s ease 2s; /* Fade in after temperature */
+        }
+    </style>
+</head>
+<body>
+    <div id="greeting"></div>
+    <div id="welcome"></div>
+    <div id="temperature"></div> <!-- New temperature text box -->
+    <div id="feelsLike"></div> <!-- New feels like text box -->
+
+    <script>
+        async function fetchWeather() {
+            const apiKey = 'c2833fc42c32696641d680c030b432b4';
+            const lat = 54.7112;
+            const lon = -3.4436;
+            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            // Extract and round required temperatures to nearest whole number
+            const temp = Math.round(data.main.temp);
+            const feelsLike = Math.round(data.main.feels_like);
+            const tempMin = Math.round(data.main.temp_min); // Minimum temperature
+            const tempMax = Math.round(data.main.temp_max); // Maximum temperature
+            const description = data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1); // Capitalized weather description
+
+            return { temp, feelsLike, tempMin, tempMax, description };
+        }
+
+        function updateGreeting() {
+            const currentTime = new Date();
+            const hours = currentTime.getHours();
+            const greetingElement = document.getElementById('greeting');
+            let backgroundColor, textColor, greetingText;
+
+            if (hours >= 0 && hours < 12) {
+                greetingText = "GOOD\nMORNING.";
+                backgroundColor = "#161e35";
+                textColor = "#385e9d"; // Morning text color
+            } else if (hours >= 12 && hours < 18) {
+                greetingText = "GOOD\nAFTERNOON.";
+                backgroundColor = "#796429";
+                textColor = "#ffe39a"; // Afternoon text color
+            } else {
+                greetingText = "GOOD\nEVENING.";
+                backgroundColor = "#390c0c";
+                textColor = "#ff6d66"; // Evening text color
+            }
+
+            document.body.style.backgroundColor = backgroundColor;
+            greetingElement.style.color = textColor; // Set the greeting text color dynamically
+            greetingElement.textContent = greetingText;
+            return textColor; // Return textColor for use in welcome element
+        }
+
+        async function init() {
+            const { temp, feelsLike, tempMin, tempMax, description } = await fetchWeather();
+            const textColor = updateGreeting(); // Update greeting and get color
+
+            // Update the welcome text with temperature information
+            const welcomeElement = document.getElementById('welcome');
+            welcomeElement.style.color = textColor; // Set the welcome text color dynamically
+            welcomeElement.textContent = `Low: ${tempMin} | High: ${tempMax} | ${description}`;
+
+            // Update the temperature text box
+            const temperatureElement = document.getElementById('temperature');
+            temperatureElement.style.color = textColor; // Set the temperature text color dynamically
+            temperatureElement.textContent = `${temp}°`; // Display current temperature
+
+            // Update the feels like text box
+            const feelsLikeElement = document.getElementById('feelsLike');
+            feelsLikeElement.style.color = textColor; // Set the feels like text color dynamically
+            feelsLikeElement.textContent = `Feels like ${feelsLike}°`; // Display feels like temperature
+
+            // Trigger animations for greeting
+            const greetingElement = document.getElementById('greeting');
+            const lines = greetingElement.textContent.split('\n'); // Split lines for animation
+
+
+            setTimeout(() => {
+                // Animate the second line
+                greetingElement.textContent = lines.join('\n'); // Set to both lines
+                greetingElement.style.opacity = 1; // Fade in both lines
+            }, 1000); // Wait 1 second before showing second line
+
+            setTimeout(() => {
+                welcomeElement.style.opacity = 1; // Fade in welcome
+            }, 1500); // Delay for welcome
+
+            setTimeout(() => {
+                temperatureElement.style.opacity = 1; // Zoom in temperature
+                temperatureElement.style.transform = 'scale(1)'; // Reset scale to 1
+            }, 2000); // Delay for temperature
+
+            setTimeout(() => {
+                feelsLikeElement.style.opacity = 1; // Fade in feels like
+            }, 2500); // Delay for feels like
+        }
+
+        init(); // Start the process
+    </script>
+</body>
+</html>
