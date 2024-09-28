@@ -26,71 +26,96 @@
             left: 100px;
             top: 200px;
             font-size: 200px;
-            white-space: pre-wrap; /* Preserves the line break */
+            white-space: pre-wrap;
             font-family: 'TestDomaineDisplayCondensed', Arial, sans-serif;
-            line-height: 0.9; /* Set line height to 1 */
-            opacity: 0; /* Start hidden */
-            transition: opacity 0.5s ease; /* Transition for fade */
+            line-height: 0.9;
+            opacity: 0;
+            transition: opacity 0.5s ease;
         }
 
         #welcome {
             position: absolute;
             left: 100px;
-            top: 600px; /* 25px underneath the TOD text */
+            top: 600px;
             font-size: 50px;
             font-family: 'DMSans', Arial, sans-serif;
-            opacity: 0; /* Start hidden */
-            transition: opacity 0.5s ease 0.5s; /* Fade in after greeting */
+            opacity: 0;
+            transition: opacity 0.5s ease 0.5s;
         }
 
         #temperature {
             position: absolute;
-            left: 1475px; /* 50 pixels from the right */
-            bottom: 90px; /* 75 pixels from the bottom */
+            left: 1425px;
+            bottom: 80px;
             font-size: 325px;
             font-family: 'TestDomaineDisplayCondensed', Arial, sans-serif;
-            color: #000; /* Default color; will be updated with temp color later */
-            opacity: 0; /* Start hidden */
-            transform: scale(0); /* Start scaled down */
-            transition: opacity 0.5s ease 1.5s, transform 0.5s ease; /* Zoom in after welcome */
+            color: #000;
+            opacity: 0;
+            transform: scale(0);
+            transition: opacity 0.5s ease 1.5s, transform 0.5s ease;
         }
 
         #feelsLike {
             position: absolute;
-            left: 1475px; /* Same right position as temperature */
-            bottom: 90px; /* 25 pixels underneath the temperature */
+            left: 1425px;
+            bottom: 75px;
             font-size: 45px;
             font-family: 'DMSans', Arial, sans-serif;
-            color: #000; /* Default color; will be updated with temp color later */
-            opacity: 0; /* Start hidden */
-            transition: opacity 0.5s ease 2s; /* Fade in after temperature */
+            color: #000;
+            opacity: 0;
+            transition: opacity 0.5s ease 2s;
         }
     </style>
 </head>
 <body>
     <div id="greeting"></div>
     <div id="welcome"></div>
-    <div id="temperature"></div> <!-- New temperature text box -->
-    <div id="feelsLike"></div> <!-- New feels like text box -->
+    <div id="temperature"></div>
+    <div id="feelsLike"></div>
 
     <script>
-        async function fetchWeather() {
-            const apiKey = 'c2833fc42c32696641d680c030b432b4';
-            const lat = 54.7112;
-            const lon = -3.4436;
-            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
-
+        async function fetchWeatherRSS() {
+            const url = 'https://weather-broker-cdn.api.bbci.co.uk/en/forecast/rss/3day/2651446';
             const response = await fetch(url);
-            const data = await response.json();
+            const rssText = await response.text();
+            
+            // Parse the RSS feed
+            const parser = new DOMParser();
+            const rss = parser.parseFromString(rssText, 'application/xml');
+            const items = rss.querySelectorAll('item');
+            
+            let minTemp = 'N/A', maxTemp = 'N/A', description = 'No description available';
 
-            // Extract and round required temperatures to nearest whole number
-            const temp = Math.round(data.main.temp);
-            const feelsLike = Math.round(data.main.feels_like);
-            const tempMin = Math.round(data.main.temp_min); // Minimum temperature
-            const tempMax = Math.round(data.main.temp_max); // Maximum temperature
-            const description = data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1); // Capitalized weather description
+            // Loop through items to find today's weather data
+            items.forEach(item => {
+                const titleText = item.querySelector('title').textContent;
+                if (titleText.includes('Today:')) {
+                    // Extract description
+                    const descriptionMatch = titleText.match(/Today: ([^,]+)/);
+                    if (descriptionMatch) description = descriptionMatch[1];
 
-            return { temp, feelsLike, tempMin, tempMax, description };
+                    // Extract minimum and maximum temperatures
+                    const minTempMatch = titleText.match(/Minimum Temperature: (\d+)/);
+                    const maxTempMatch = titleText.match(/Maximum Temperature: (\d+)/);
+
+                    if (minTempMatch) minTemp = minTempMatch[1];
+                    if (maxTempMatch) maxTemp = maxTempMatch[1];
+                }
+            });
+
+            return { minTemp, maxTemp, description };
+        }
+
+        async function fetchWeather() {
+            const url = 'https://api.openweathermap.org/data/2.5/weather?lat=54.7112&lon=-3.4436&appid=c2833fc42c32696641d680c030b432b4&units=metric';
+            const response = await fetch(url);
+            const weatherData = await response.json();
+            
+            // Extract and round the temperature and feels_like values
+            const temperature = Math.floor(weatherData.main.temp);
+            const feelsLike = Math.round(weatherData.main.feels_like); // Rounding feels_like temperature
+
+            return { temperature, feelsLike };
         }
 
         function updateGreeting() {
@@ -100,70 +125,62 @@
             let backgroundColor, textColor, greetingText;
 
             if (hours >= 0 && hours < 12) {
-                greetingText = "GOOD\nMORNING.";
+                greetingText = "GOOD\nMORNING";
                 backgroundColor = "#161e35";
-                textColor = "#385e9d"; // Morning text color
+                textColor = "#385e9d";
             } else if (hours >= 12 && hours < 18) {
-                greetingText = "GOOD\nAFTERNOON.";
+                greetingText = "GOOD\nAFTERNOON";
                 backgroundColor = "#796429";
-                textColor = "#ffe39a"; // Afternoon text color
+                textColor = "#ffe39a";
             } else {
-                greetingText = "GOOD\nEVENING.";
+                greetingText = "GOOD\nEVENING";
                 backgroundColor = "#390c0c";
-                textColor = "#ff6d66"; // Evening text color
+                textColor = "#ff6d66";
             }
 
             document.body.style.backgroundColor = backgroundColor;
-            greetingElement.style.color = textColor; // Set the greeting text color dynamically
+            greetingElement.style.color = textColor;
             greetingElement.textContent = greetingText;
-            return textColor; // Return textColor for use in welcome element
+            return textColor;
         }
 
         async function init() {
-            const { temp, feelsLike, tempMin, tempMax, description } = await fetchWeather();
-            const textColor = updateGreeting(); // Update greeting and get color
+            const { minTemp, maxTemp, description } = await fetchWeatherRSS();
+            const { temperature, feelsLike } = await fetchWeather();
+            const textColor = updateGreeting();
 
-            // Update the welcome text with temperature information
             const welcomeElement = document.getElementById('welcome');
-            welcomeElement.style.color = textColor; // Set the welcome text color dynamically
-            welcomeElement.textContent = `Low: ${tempMin} | High: ${tempMax} | ${description}`;
+            welcomeElement.style.color = textColor;
+            welcomeElement.textContent = `Low: ${minTemp}°C | High: ${maxTemp}°C | ${description}`;
 
-            // Update the temperature text box
             const temperatureElement = document.getElementById('temperature');
-            temperatureElement.style.color = textColor; // Set the temperature text color dynamically
-            temperatureElement.textContent = `${temp}°`; // Display current temperature
+            temperatureElement.style.color = textColor;
+            temperatureElement.textContent = `${temperature}°`; // Display the temperature from OpenWeatherMap
 
-            // Update the feels like text box
             const feelsLikeElement = document.getElementById('feelsLike');
-            feelsLikeElement.style.color = textColor; // Set the feels like text color dynamically
-            feelsLikeElement.textContent = `Feels like ${feelsLike}°`; // Display feels like temperature
-
-            // Trigger animations for greeting
-            const greetingElement = document.getElementById('greeting');
-            const lines = greetingElement.textContent.split('\n'); // Split lines for animation
-
+            feelsLikeElement.style.color = textColor;
+            feelsLikeElement.textContent = `Feels like ${feelsLike}°`; // Display the feels like temperature
 
             setTimeout(() => {
-                // Animate the second line
-                greetingElement.textContent = lines.join('\n'); // Set to both lines
-                greetingElement.style.opacity = 1; // Fade in both lines
-            }, 1000); // Wait 1 second before showing second line
+                const greetingElement = document.getElementById('greeting');
+                greetingElement.style.opacity = 1;
+            }, 1000);
 
             setTimeout(() => {
-                welcomeElement.style.opacity = 1; // Fade in welcome
-            }, 1500); // Delay for welcome
+                welcomeElement.style.opacity = 1;
+            }, 1500);
 
             setTimeout(() => {
-                temperatureElement.style.opacity = 1; // Zoom in temperature
-                temperatureElement.style.transform = 'scale(1)'; // Reset scale to 1
-            }, 2000); // Delay for temperature
+                temperatureElement.style.opacity = 1;
+                temperatureElement.style.transform = 'scale(1)';
+            }, 2000);
 
             setTimeout(() => {
-                feelsLikeElement.style.opacity = 1; // Fade in feels like
-            }, 2500); // Delay for feels like
+                feelsLikeElement.style.opacity = 1;
+            }, 2500);
         }
 
-        init(); // Start the process
+        init();
     </script>
 </body>
 </html>
